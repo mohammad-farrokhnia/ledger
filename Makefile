@@ -66,6 +66,12 @@ migrate-down:
 migrate-create:
 	migrate create -ext sql -dir migrations -seq $(name)
 
+migrate-test:
+	migrate -path migrations -database "$(DB_DSN_TEST)" up
+
+migrate-down-test:
+	migrate -path migrations -database "$(DB_DSN_TEST)" down 1
+
 # Code Generation
 
 ## gen: generate Go code and Swagger from .proto files
