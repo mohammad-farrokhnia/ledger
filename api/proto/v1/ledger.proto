@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package ledger.v1;
+
+option go_package = "github.com/mohammad-farrokhnia/go-ledger/api/proto/v1;ledgerv1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+// OpenAPI top-level metadata — appears in the Swagger UI header.
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "go-ledger API"
+    version: "1.0"
+    description: "A high-consistency, bank-grade financial transaction service."
+  }
+  schemes: HTTP
+  schemes: HTTPS
+  consumes: "application/json"
+  produces: "application/json"
+};
+
+// ──────────────────────────────────────────────
+// Enums
+// ──────────────────────────────────────────────
+
+// AccountType defines the role of an account in the system.
+enum AccountType {
+  // Default — should never be used explicitly.
+  ACCOUNT_TYPE_UNSPECIFIED = 0;
+  // A real user wallet. Cannot go below zero balance.
+  ACCOUNT_TYPE_USER = 1;
+  // A platform-owned account. Can go negative (used to mint money on top-up).
+  ACCOUNT_TYPE_SYSTEM = 2;
+  // A third-party account (payment gateway, bank). Mostly read-only.
+  ACCOUNT_TYPE_PROVIDER = 3;
+}
+
+// TransactionStatus tracks the lifecycle of a transaction.
+enum TransactionStatus {
+  TRANSACTION_STATUS_UNSPECIFIED = 0;
+  // Transaction started but not yet committed.
+  TRANSACTION_STATUS_PENDING = 1;
+  // All entries written and balances updated. Terminal state.
+  TRANSACTION_STATUS_COMPLETED = 2;
+  // Transaction rolled back. Terminal state.
+  TRANSACTION_STATUS_FAILED = 3;
+}
+
+// ──────────────────────────────────────────────
+// Core domain messages
+// ──────────────────────────────────────────────
+
+// Wallet represents a user or system account in the ledger.
+message Wallet {
+  string id = 1;
+  string name = 2;
+  AccountType type = 3;
+  // ISO 4217 currency code (e.g. "USD", "IRR", "EUR").
+  string currency_code = 4;
+  // Current balance in the smallest indivisible unit for this currency.
+  // For USD: cents. For IRR: rials.
+  int64 balance = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// Transaction represents a completed or pending movement of money.
+message Transaction {
+  string id = 1;
+  // Client-generated UUID. Clients must store this and reuse it on retry.
+  // Sending the same idempotency_key twice returns the original transaction.
+  string idempotency_key = 2;
+  string from_account_id = 3;
+  string to_account_id = 4;
+  // Always positive. Direction is determined by which account you are.
+  int64 amount = 5;
+  string currency_code = 6;
+  TransactionStatus status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// Entry is a single line in the ledger — one side of a double-entry pair.
+message Entry {
+  string id = 1;
+  string account_id = 2;
+  string transaction_id = 3;
+  // Positive = CREDIT (money in). Negative = DEBIT (money out).
+  int64 amount = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// ──────────────────────────────────────────────
+// RPC request / response messages
+// ──────────────────────────────────────────────
+
+message CreateWalletRequest {
+  string name = 1;
+  AccountType type = 2;
+  // ISO 4217 currency code. Must be a valid 3-letter code.
+  string currency_code = 3;
+}
+
+message CreateWalletResponse {
+  Wallet wallet = 1;
+}
+
+message GetBalanceRequest {
+  string wallet_id = 1;
+}
+
+message GetBalanceResponse {
+  string wallet_id = 1;
+  int64 balance = 2;
+  string currency_code = 3;
+}
+
+message CreateTransactionRequest {
+  // Client must generate this UUID before sending the request.
+  // Use the same value on every retry attempt.
+  string idempotency_key = 1;
+  string from_account_id = 2;
+  string to_account_id = 3;
+  // Must be greater than zero.
+  int64 amount = 4;
+  // Must match the currency_code of both accounts.
+  string currency_code = 5;
+}
+
+message CreateTransactionResponse {
+  Transaction transaction = 1;
+}
+
+message GetWalletHistoryRequest {
+  string wallet_id = 1;
+  // Maximum number of entries to return. Default: 20, max: 100.
+  int32 page_size = 2;
+  // Opaque token from a previous response to fetch the next page.
+  string page_token = 3;
+}
+
+message GetWalletHistoryResponse {
+  repeated Entry entries = 1;
+  // Empty string means no more pages.
+  string next_page_token = 2;
+}
+
+// ──────────────────────────────────────────────
+// Service
+// ──────────────────────────────────────────────
+
+// LedgerService manages wallets and financial transactions.
+service LedgerService {
+  // CreateWallet creates a new account in the ledger.
+  rpc CreateWallet(CreateWalletRequest) returns (CreateWalletResponse) {
+    option (google.api.http) = {
+      post: "/v1/wallets"
+      body: "*"
+    };
+  }
+
+  // GetBalance returns the current balance of a wallet.
+  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse) {
+    option (google.api.http) = {
+      get: "/v1/wallets/{wallet_id}/balance"
+    };
+  }
+
+  // CreateTransaction moves money atomically between two wallets.
+  // The client must provide a unique idempotency_key to safely retry on failure.
+  rpc CreateTransaction(CreateTransactionRequest) returns (CreateTransactionResponse) {
+    option (google.api.http) = {
+      post: "/v1/transactions"
+      body: "*"
+    };
+  }
+
+  // GetWalletHistory returns the paginated entry log for a wallet.
+  rpc GetWalletHistory(GetWalletHistoryRequest) returns (GetWalletHistoryResponse) {
+    option (google.api.http) = {
+      get: "/v1/wallets/{wallet_id}/history"
+    };
+  }
+}
