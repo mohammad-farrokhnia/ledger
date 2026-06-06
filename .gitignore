@@ -34,3 +34,4 @@ configs/config.yaml
 # Editor/IDE
 .idea/
 .vscode/
+api/openapi/*.json

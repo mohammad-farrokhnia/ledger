@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ledger.v1;
 
-option go_package = "github.com/mohammad-farrokhnia/go-ledger/api/proto/v1;ledgerv1";
+option go_package = "github.com/mohammad-farrokhnia/go-ledger/api/proto/ledger/v1;ledgerv1";
 
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
