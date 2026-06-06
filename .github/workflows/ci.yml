@@ -1,38 +1,84 @@
 name: CI
 
 on:
-  push:
-    branches: [ "master", "develop" ]
   pull_request:
-    branches: [ "master", "develop" ]
+    branches:
+      - develop
+      - main
+  push:
+    branches:
+      - develop
 
 jobs:
-  quality:
-    name: Code Quality
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.22' 
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          version: latest
-          args: --timeout=5m
+          go-version: '1.26'
+          cache: true
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v1.59.1
 
   test:
-    name: Test & Coverage
+    name: Test
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.22'
+    needs: lint
 
-      - name: Run Unit Tests
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ledger_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        env:
+          DB_DSN: postgres://postgres:postgres@localhost:5432/ledger_test?sslmode=disable
+        run: go test -race -count=1 -timeout 120s ./...
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Build binary
+        run: go build -o /dev/null ./cmd/ledger
