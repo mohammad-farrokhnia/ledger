@@ -1,33 +1,82 @@
-.PHONY: lint test build run up down migrate gen
+include .env
+export
 
-# Run the linter
+.PHONY: lint test build run \
+        up down down-volumes logs db \
+        migrate migrate-down migrate-create \
+        gen help
+
+# Development
+
+## lint: run golangci-lint
 lint:
 	golangci-lint run ./...
 
-# Run all tests with race detector enabled
+## test: run all tests with race detector
 test:
-	go test -race -count=1 ./...
+	go test -race -count=1 -timeout 120s ./...
 
-# Build the binary
+## test-verbose: run tests with full output
+test-verbose:
+	go test -race -count=1 -timeout 120s -v ./...
+
+## build: compile the binary to bin/ledger
 build:
 	go build -o bin/ledger ./cmd/ledger
 
-# Run the service locally
+## run: run the service locally
 run:
 	go run ./cmd/ledger
 
-# Start local infrastructure (postgres)
+# Infrastructure
+
+## up: start containers
 up:
 	docker compose -f deployments/docker/docker-compose.yml up -d
+	@echo "Postgres ready at localhost:5432"
+	@echo "pgAdmin ready at http://localhost:5050 (admin@ledger.dev / admin)"
 
-# Stop local infrastructure
+## down: stop containers (data is preserved)
 down:
 	docker compose -f deployments/docker/docker-compose.yml down
 
-# Run database migrations (up)
+## down-volumes: stop containers AND delete all data (clean slate)
+down-volumes:
+	docker compose -f deployments/docker/docker-compose.yml down -v
+
+## logs: tail container logs
+logs:
+	docker compose -f deployments/docker/docker-compose.yml logs -f
+
+## db: open a psql shell directly inside the postgres container
+db:
+	docker exec -it ledger-postgres psql -U postgres -d ledger
+
+# Migrations
+
+## migrate: run all pending migrations (up)
 migrate:
 	migrate -path migrations -database "$(DB_DSN)" up
 
-# Generate proto files
+## migrate-down: roll back the last migration
+migrate-down:
+	migrate -path migrations -database "$(DB_DSN)" down 1
+
+## migrate-create name=<migration_name>: create a new migration file pair
+migrate-create:
+	migrate create -ext sql -dir migrations -seq $(name)
+
+# Code Generation
+
+## gen: generate Go code and Swagger from .proto files
 gen:
 	buf generate
+
+# ============================================================
+# Help
+# ============================================================
+
+## help: print this help message
+help:
+	@echo "Usage: make [target]"
+	@sed -n 's/^##//p' $(MAKEFILE_LIST) | column -t -s ':' | sed -e 's/^/ /'
