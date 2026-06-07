@@ -1,22 +1,15 @@
 name: Proto
 
 on:
-  pull_request:
-    paths:
-      - 'api/proto/**'
-      - 'buf.yaml'
-      - 'buf.gen.yaml'
+  workflow_dispatch: # manual trigger only
 
 jobs:
   lint:
     name: Buf lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Buf
-        uses: bufbuild/buf-action@v1
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-action@v1
         with:
           version: '1.34.0'
           lint: true

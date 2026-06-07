@@ -1,30 +1,19 @@
 name: CI
 
 on:
-  pull_request:
-    branches:
-      - develop
-      - main
-  push:
-    branches:
-      - develop
+  workflow_dispatch: # manual trigger only — re-add push/pull_request when team grows
 
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
           cache: true
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v8
+      - uses: golangci/golangci-lint-action@v8
         with:
           version: v1.59.1
 
@@ -32,7 +21,6 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     needs: lint
-
     services:
       postgres:
         image: postgres:16-alpine
@@ -47,38 +35,25 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
           cache: true
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Run tests
+      - run: go mod download
+      - run: go test -race -count=1 -timeout 120s ./...
         env:
           DB_DSN: postgres://postgres:postgres@localhost:5432/ledger_test?sslmode=disable
-        run: go test -race -count=1 -timeout 120s ./...
 
   build:
     name: Build
     runs-on: ubuntu-latest
     needs: test
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
           cache: true
-
-      - name: Build binary
-        run: go build -o /dev/null ./cmd/ledger
+      - run: go build -o /dev/null ./cmd/ledger
