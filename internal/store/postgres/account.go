@@ -8,10 +8,9 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/store"
 )
 
-func (s *Store) CreateAccount(ctx context.Context, params store.CreateAccountParams) (ledger.Account, error) {
+func (s *Store) CreateAccount(ctx context.Context, params ledger.CreateAccountParams) (ledger.Account, error) {
 	const q = `
 		INSERT INTO accounts (name, type, currency_code)
 		VALUES ($1, $2, $3)

@@ -5,10 +5,9 @@ import (
 	"fmt"
 
 	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/store"
 )
 
-func (s *Store) GetWalletHistory(ctx context.Context, params store.GetWalletHistoryParams) ([]ledger.Entry, error) {
+func (s *Store) GetWalletHistory(ctx context.Context, params ledger.GetWalletHistoryParams) ([]ledger.Entry, error) {
 	const q = `
 		SELECT id, account_id, transaction_id, amount, created_at
 		FROM entries

@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/store"
 )
 
 type accountSnapshot struct {
@@ -19,7 +18,7 @@ type accountSnapshot struct {
 	balance      int64
 }
 
-func (s *Store) CreateTransaction(ctx context.Context, params store.CreateTransactionParams) (ledger.Transaction, error) {
+func (s *Store) CreateTransaction(ctx context.Context, params ledger.CreateTransactionParams) (ledger.Transaction, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return ledger.Transaction{}, fmt.Errorf("postgres: begin tx: %w", err)

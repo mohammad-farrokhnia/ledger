@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
 )
 
 type Store struct {
@@ -27,3 +28,5 @@ func New(ctx context.Context, dsn string) (*Store, error) {
 func (s *Store) Close() {
 	s.pool.Close()
 }
+
+var _ ledger.Store = (*Store)(nil)
