@@ -59,7 +59,7 @@ func (s *Store) CreateTransaction(ctx context.Context, params ledger.CreateTrans
 	}
 
 	if len(snapshots) != 2 {
-		return ledger.Transaction{}, ledger.ErrAccountNotFound
+		return ledger.Transaction{}, ledger.ErrTransactionNotFound
 	}
 
 	var from, to accountSnapshot
@@ -170,7 +170,7 @@ func (s *Store) GetTransaction(ctx context.Context, id string) (ledger.Transacti
 	result, err := scanTransaction(s.pool.QueryRow(ctx, q, id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ledger.Transaction{}, ledger.ErrAccountNotFound
+			return ledger.Transaction{}, ledger.ErrTransactionNotFound
 		}
 		return ledger.Transaction{}, fmt.Errorf("postgres: get transaction: %w", err)
 	}

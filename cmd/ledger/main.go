@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,8 +18,12 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})))
+
 	if err := run(); err != nil {
-		log.Printf("fatal: %v", err)
+		slog.Error("fatal error", "error", err)
 		os.Exit(1)
 	}
 }
@@ -49,10 +53,9 @@ func run() error {
 	}
 	defer pgStore.Close()
 
-	log.Println("connected to postgres")
+	slog.Info("connected to postgres")
 
 	svc := ledger.NewService(pgStore)
-
 	grpcServer := transportgrpc.NewServer(svc)
 
 	gateway, err := transporthttp.NewGateway(ctx, fmt.Sprintf("localhost:%s", grpcPort))
@@ -68,21 +71,19 @@ func run() error {
 	g, gCtx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		log.Printf("gRPC server listening on :%s", grpcPort)
+		slog.Info("gRPC server starting", "port", grpcPort)
 		return grpcServer.Start(grpcPort)
 	})
 
 	g.Go(func() error {
-		log.Printf("HTTP gateway listening on :%s", httpPort)
+		slog.Info("HTTP gateway starting", "port", httpPort)
 		return httpServer.ListenAndServe()
 	})
 
 	g.Go(func() error {
 		<-gCtx.Done()
-
-		log.Println("shutting down...")
+		slog.Info("shutdown signal received")
 		grpcServer.Stop()
-
 		return httpServer.Shutdown(context.Background())
 	})
 
@@ -90,6 +91,6 @@ func run() error {
 		return fmt.Errorf("server error: %w", err)
 	}
 
-	log.Println("shutdown complete")
+	slog.Info("shutdown complete")
 	return nil
 }

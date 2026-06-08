@@ -3,14 +3,23 @@ package grpc
 import (
 	"errors"
 
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
 )
 
 func domainErrorToGRPC(err error) error {
+	var valErr *ledger.ValidationError
+	if errors.As(err, &valErr) {
+		return status.Error(codes.InvalidArgument, valErr.Error())
+	}
+
 	switch {
 	case errors.Is(err, ledger.ErrAccountNotFound):
+		return status.Error(codes.NotFound, err.Error())
+
+	case errors.Is(err, ledger.ErrTransactionNotFound):
 		return status.Error(codes.NotFound, err.Error())
 
 	case errors.Is(err, ledger.ErrInsufficientFunds):
@@ -35,6 +44,6 @@ func domainErrorToGRPC(err error) error {
 		return status.Error(codes.InvalidArgument, err.Error())
 
 	default:
-		return status.Error(codes.Internal, "An internal server error occurred")
+		return status.Error(codes.Internal, "an internal error occurred")
 	}
 }
