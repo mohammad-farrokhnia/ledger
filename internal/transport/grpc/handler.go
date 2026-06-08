@@ -2,14 +2,17 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	ledgerv1 "github.com/mohammad-farrokhnia/go-ledger/api/proto/ledger/v1"
 	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+	"github.com/mohammad-farrokhnia/go-ledger/internal/metrics"
 )
 
 type Handler struct {
@@ -43,7 +46,7 @@ func (h *Handler) GetBalance(ctx context.Context, req *ledgerv1.GetBalanceReques
 
 	acc, err := h.svc.GetAccount(ctx, req.WalletId)
 	if err != nil {
-		slog.ErrorContext(ctx, "GetBalance: get account failed", "error", err, "wallet_id", req.WalletId)
+		slog.ErrorContext(ctx, "GetBalance failed", "error", err, "wallet_id", req.WalletId)
 		return nil, domainErrorToGRPC(err)
 	}
 
@@ -59,6 +62,8 @@ func (h *Handler) CreateTransaction(ctx context.Context, req *ledgerv1.CreateTra
 		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
 	}
 
+	start := time.Now()
+
 	tx, err := h.svc.CreateTransaction(ctx, ledger.CreateTransactionInput{
 		IdempotencyKey: req.IdempotencyKey,
 		FromAccountID:  req.FromAccountId,
@@ -66,13 +71,22 @@ func (h *Handler) CreateTransaction(ctx context.Context, req *ledgerv1.CreateTra
 		Amount:         req.Amount,
 		CurrencyCode:   req.CurrencyCode,
 	})
+
+	duration := time.Since(start).Seconds()
+	metrics.TransactionDuration.Observe(duration)
+
 	if err != nil {
+		errorType := classifyError(err)
+		metrics.TransactionsTotal.WithLabelValues("fail", errorType).Inc()
 		slog.ErrorContext(ctx, "CreateTransaction failed",
 			"error", err,
+			"error_type", errorType,
 			"idempotency_key", req.IdempotencyKey,
 		)
 		return nil, domainErrorToGRPC(err)
 	}
+
+	metrics.TransactionsTotal.WithLabelValues("success", "").Inc()
 
 	slog.InfoContext(ctx, "transaction created",
 		"transaction_id", tx.ID,
@@ -80,7 +94,9 @@ func (h *Handler) CreateTransaction(ctx context.Context, req *ledgerv1.CreateTra
 		"to", tx.ToAccountID,
 		"amount", tx.Amount,
 		"currency", tx.CurrencyCode,
+		"duration_ms", time.Since(start).Milliseconds(),
 	)
+
 	return &ledgerv1.CreateTransactionResponse{Transaction: transactionToProto(tx)}, nil
 }
 
@@ -118,4 +134,22 @@ func (h *Handler) GetWalletHistory(ctx context.Context, req *ledgerv1.GetWalletH
 		Entries:       protoEntries,
 		NextPageToken: nextToken,
 	}, nil
+}
+
+func classifyError(err error) string {
+	switch {
+	case errors.Is(err, ledger.ErrInsufficientFunds):
+		return "insufficient_funds"
+	case errors.Is(err, ledger.ErrCurrencyMismatch):
+		return "currency_mismatch"
+	case errors.Is(err, ledger.ErrDuplicateTransaction):
+		return "duplicate"
+	case errors.Is(err, ledger.ErrInvalidAmount),
+		errors.Is(err, ledger.ErrSameAccount),
+		errors.Is(err, ledger.ErrInvalidCurrencyCode),
+		errors.Is(err, ledger.ErrInvalidAccountType):
+		return "invalid_input"
+	default:
+		return "internal"
+	}
 }
