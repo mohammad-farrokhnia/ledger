@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
+	_ "embed"
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -12,16 +13,62 @@ import (
 	ledgerv1 "github.com/mohammad-farrokhnia/go-ledger/api/proto/ledger/v1"
 )
 
+var swaggerJSON []byte
+
 func NewGateway(ctx context.Context, grpcAddr string) (http.Handler, error) {
-	mux := runtime.NewServeMux()
+	gwMux := runtime.NewServeMux()
 
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 
-	if err := ledgerv1.RegisterLedgerServiceHandlerFromEndpoint(ctx, mux, grpcAddr, opts); err != nil {
+	if err := ledgerv1.RegisterLedgerServiceHandlerFromEndpoint(ctx, gwMux, grpcAddr, opts); err != nil {
 		return nil, fmt.Errorf("gateway: register handler: %w", err)
 	}
 
+	mux := http.NewServeMux()
+
+	mux.Handle("/v1/", gwMux)
+
+	mux.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		writeResponse(w, swaggerJSON)
+	})
+
+	mux.HandleFunc("/swagger/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		writeResponse(w, []byte(swaggerUIHTML))
+	})
+
 	return mux, nil
+}
+
+const swaggerUIHTML = `<!DOCTYPE html>
+<html>
+<head>
+  <title>go-ledger API</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css"
+    href="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui.css">
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui-bundle.js"></script>
+<script>
+  SwaggerUIBundle({
+    url: "/swagger.json",
+    dom_id: '#swagger-ui',
+    presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+    layout: "BaseLayout"
+  })
+</script>
+</body>
+</html>`
+
+func writeResponse(w http.ResponseWriter, data []byte) {
+	_, err := w.Write(data)
+	if err != nil {
+		panic(err)
+	}
 }

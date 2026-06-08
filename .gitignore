@@ -10,7 +10,7 @@
 /bin/
 /dist/
 *.pb.go
-*.pb*.go
+# *.pb*.go
 
 # Test binary, built with `go test -c`
 *.test
@@ -35,4 +35,3 @@ configs/config.yaml
 # Editor/IDE
 .idea/
 .vscode/
-api/openapi/*.json

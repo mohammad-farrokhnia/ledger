@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/mohammad-farrokhnia/go-ledger/internal/audit"
 	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
 	"github.com/mohammad-farrokhnia/go-ledger/internal/store/postgres"
 	transportgrpc "github.com/mohammad-farrokhnia/go-ledger/internal/transport/grpc"
@@ -44,6 +45,12 @@ func run() error {
 		httpPort = "8080"
 	}
 
+	auditHookURL := os.Getenv("AUDIT_HOOK_URL")
+	auditMode := os.Getenv("AUDIT_MODE")
+	if auditMode == "" {
+		auditMode = "async"
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
@@ -55,7 +62,17 @@ func run() error {
 
 	slog.Info("connected to postgres")
 
-	svc := ledger.NewService(pgStore)
+	var auditor ledger.Auditor
+	if auditHookURL != "" {
+		auditor = audit.NewWebhookAuditor(auditHookURL, auditMode)
+		slog.Info("audit webhook configured", "url", auditHookURL, "mode", auditMode)
+	} else {
+		auditor = &audit.NoOp{}
+		slog.Warn("AUDIT_HOOK_URL not set — audit logging disabled")
+	}
+
+	svc := ledger.NewService(pgStore, auditor)
+
 	grpcServer := transportgrpc.NewServer(svc)
 
 	gateway, err := transporthttp.NewGateway(ctx, fmt.Sprintf("localhost:%s", grpcPort))
