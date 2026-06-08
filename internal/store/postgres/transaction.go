@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"sort"
 
 	"github.com/jackc/pgx/v5"
@@ -223,8 +223,7 @@ func scanTransaction(row interface {
 }
 
 func rollBack(ctx context.Context, tx pgx.Tx) {
-	err := tx.Rollback(ctx)
-	if err != nil {
-		log.Println("postgres: rollback tx:", err)
+	if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+		slog.WarnContext(ctx, "postgres: unexpected rollback error", "error", err)
 	}
 }
