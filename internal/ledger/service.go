@@ -2,7 +2,6 @@ package ledger
 
 import (
 	"context"
-	"fmt"
 	"strings"
 )
 
@@ -32,7 +31,7 @@ func NewService(s Store) *Service {
 
 func (s *Service) CreateAccount(ctx context.Context, name string, accountType AccountType, currencyCode string) (Account, error) {
 	if strings.TrimSpace(name) == "" {
-		return Account{}, fmt.Errorf("account name cannot be empty")
+		return Account{}, NewValidationError("account name cannot be empty")
 	}
 
 	if err := validateAccountType(accountType); err != nil {
@@ -52,7 +51,7 @@ func (s *Service) CreateAccount(ctx context.Context, name string, accountType Ac
 
 func (s *Service) GetAccount(ctx context.Context, id string) (Account, error) {
 	if id == "" {
-		return Account{}, fmt.Errorf("account ID cannot be empty")
+		return Account{}, NewValidationError("account ID cannot be empty")
 	}
 
 	return s.store.GetAccount(ctx, id)
@@ -60,7 +59,7 @@ func (s *Service) GetAccount(ctx context.Context, id string) (Account, error) {
 
 func (s *Service) GetBalance(ctx context.Context, accountID string) (int64, error) {
 	if accountID == "" {
-		return 0, fmt.Errorf("account ID cannot be empty")
+		return 0, NewValidationError("account ID cannot be empty")
 	}
 
 	return s.store.GetBalance(ctx, accountID)
@@ -76,7 +75,7 @@ func (s *Service) CreateTransaction(ctx context.Context, params CreateTransactio
 	}
 
 	if strings.TrimSpace(params.IdempotencyKey) == "" {
-		return Transaction{}, fmt.Errorf("idempotency key cannot be empty")
+		return Transaction{}, NewValidationError("idempotency key cannot be empty")
 	}
 
 	if err := validateCurrencyCode(params.CurrencyCode); err != nil {
@@ -94,7 +93,7 @@ func (s *Service) CreateTransaction(ctx context.Context, params CreateTransactio
 
 func (s *Service) GetWalletHistory(ctx context.Context, accountID string, limit, offset int32) ([]Entry, error) {
 	if accountID == "" {
-		return nil, fmt.Errorf("account ID cannot be empty")
+		return nil, NewValidationError("account ID cannot be empty")
 	}
 
 	if limit <= 0 {
