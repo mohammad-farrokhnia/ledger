@@ -77,6 +77,7 @@ migrate-down-test:
 ## gen: generate Go code and Swagger from .proto files
 gen:
 	buf generate
+	cp api/openapi/ledger.swagger.json internal/transport/http/swagger.json
 
 # ============================================================
 # Help

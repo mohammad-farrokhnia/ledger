@@ -11,16 +11,17 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/mohammad-farrokhnia/go-ledger/internal/audit"
+	"github.com/mohammad-farrokhnia/go-ledger/internal/config"
 	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+	_ "github.com/mohammad-farrokhnia/go-ledger/internal/metrics"
 	"github.com/mohammad-farrokhnia/go-ledger/internal/store/postgres"
 	transportgrpc "github.com/mohammad-farrokhnia/go-ledger/internal/transport/grpc"
 	transporthttp "github.com/mohammad-farrokhnia/go-ledger/internal/transport/http"
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
-	})))
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
 	if err := run(); err != nil {
 		slog.Error("fatal error", "error", err)
@@ -29,25 +30,31 @@ func main() {
 }
 
 func run() error {
-	dsn := os.Getenv("DB_DSN")
-	if dsn == "" {
-		return fmt.Errorf("DB_DSN environment variable is required")
+	cfg, err := config.Load("configs/config.yaml")
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
 	}
 
-	grpcPort := os.Getenv("GRPC_PORT")
-	if grpcPort == "" {
-		grpcPort = "9090"
+	level := slog.LevelInfo
+	if err = level.UnmarshalText([]byte(cfg.Log.Level)); err != nil {
+		level = slog.LevelInfo
 	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: level,
+	})))
 
-	httpPort := os.Getenv("HTTP_PORT")
-	if httpPort == "" {
-		httpPort = "8080"
-	}
+	slog.Info("configuration loaded",
+		"grpc_port", cfg.Server.GRPCPort,
+		"http_port", cfg.Server.HTTPPort,
+		"metrics_port", cfg.Server.MetricsPort,
+		"audit_mode", cfg.Audit.Mode,
+		"log_level", cfg.Log.Level,
+	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
-	pgStore, err := postgres.New(ctx, dsn)
+	pgStore, err := postgres.New(ctx, cfg.Database.DSN)
 	if err != nil {
 		return fmt.Errorf("connect to postgres: %w", err)
 	}
@@ -55,28 +62,41 @@ func run() error {
 
 	slog.Info("connected to postgres")
 
-	svc := ledger.NewService(pgStore)
+	var auditor ledger.Auditor
+	if cfg.Audit.HookURL != "" {
+		auditor = audit.NewWebhookAuditor(cfg.Audit.HookURL, cfg.Audit.Mode)
+		slog.Info("audit webhook configured", "url", cfg.Audit.HookURL, "mode", cfg.Audit.Mode)
+	} else {
+		auditor = &audit.NoOp{}
+		slog.Warn("AUDIT_HOOK_URL not set — audit logging disabled")
+	}
+
+	svc := ledger.NewService(pgStore, auditor)
 	grpcServer := transportgrpc.NewServer(svc)
 
-	gateway, err := transporthttp.NewGateway(ctx, fmt.Sprintf("localhost:%s", grpcPort))
+	gateway, err := transporthttp.NewGateway(
+		ctx,
+		fmt.Sprintf("localhost:%s", cfg.Server.GRPCPort),
+		pgStore.Ping,
+	)
 	if err != nil {
 		return fmt.Errorf("create gateway: %w", err)
 	}
 
 	httpServer := &http.Server{
-		Addr:    fmt.Sprintf(":%s", httpPort),
+		Addr:    fmt.Sprintf(":%s", cfg.Server.HTTPPort),
 		Handler: gateway,
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		slog.Info("gRPC server starting", "port", grpcPort)
-		return grpcServer.Start(grpcPort)
+		slog.Info("gRPC server starting", "port", cfg.Server.GRPCPort)
+		return grpcServer.Start(cfg.Server.GRPCPort)
 	})
 
 	g.Go(func() error {
-		slog.Info("HTTP gateway starting", "port", httpPort)
+		slog.Info("HTTP gateway starting", "port", cfg.Server.HTTPPort)
 		return httpServer.ListenAndServe()
 	})
 

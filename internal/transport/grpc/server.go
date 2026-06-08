@@ -12,19 +12,21 @@ import (
 )
 
 type Server struct {
-	grpc    *grpc.Server
-	handler *Handler
+	grpc *grpc.Server
 }
 
 func NewServer(svc ledger.Servicer) *Server {
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			RecoveryInterceptor,
+			LoggingInterceptor,
+		),
+	)
 
-	handler := NewHandler(svc)
-	ledgerv1.RegisterLedgerServiceServer(grpcServer, handler)
-
+	ledgerv1.RegisterLedgerServiceServer(grpcServer, NewHandler(svc))
 	reflection.Register(grpcServer)
 
-	return &Server{grpc: grpcServer, handler: handler}
+	return &Server{grpc: grpcServer}
 }
 
 func (s *Server) Start(port string) error {
