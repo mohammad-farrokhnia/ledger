@@ -1,3 +1,4 @@
+//nolint:staticcheck // U+200C (ZWNJ) is intentional Persian typography
 package i18n
 
 import "github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
