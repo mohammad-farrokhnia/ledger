@@ -20,8 +20,9 @@ var swaggerJSON []byte
 type PingFunc func(ctx context.Context) error
 
 func NewGateway(ctx context.Context, grpcAddr string, ping PingFunc) (http.Handler, error) {
-	gwMux := runtime.NewServeMux()
-
+	gwMux := runtime.NewServeMux(
+		runtime.WithErrorHandler(CustomErrorHandler),
+	)
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
@@ -34,10 +35,6 @@ func NewGateway(ctx context.Context, grpcAddr string, ping PingFunc) (http.Handl
 	mux.Handle("/v1/", gwMux)
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/health", healthHandler(ping))
-	mux.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		writeResponse(w, swaggerJSON)
-	})
 	mux.HandleFunc("/swagger/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		writeResponse(w, []byte(swaggerUIHTML))
