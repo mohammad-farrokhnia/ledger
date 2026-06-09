@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -62,16 +63,7 @@ func run() error {
 
 	slog.Info("connected to postgres")
 
-	var auditor ledger.Auditor
-	if cfg.Audit.HookURL != "" {
-		auditor = audit.NewWebhookAuditor(cfg.Audit.HookURL, cfg.Audit.Mode)
-		slog.Info("audit webhook configured", "url", cfg.Audit.HookURL, "mode", cfg.Audit.Mode)
-	} else {
-		auditor = &audit.NoOp{}
-		slog.Warn("AUDIT_HOOK_URL not set — audit logging disabled")
-	}
-
-	svc := ledger.NewService(pgStore, auditor)
+	svc := ledger.NewService(pgStore)
 	grpcServer := transportgrpc.NewServer(svc)
 
 	gateway, err := transporthttp.NewGateway(
@@ -89,6 +81,17 @@ func run() error {
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
+
+	if cfg.Audit.HookURL != "" {
+		worker := audit.NewWorker(pgStore, cfg.Audit.HookURL, 5*time.Second)
+		g.Go(func() error {
+			worker.Run(gCtx)
+			return nil
+		})
+		slog.Info("audit outbox worker configured", "hook_url", cfg.Audit.HookURL)
+	} else {
+		slog.Warn("AUDIT_HOOK_URL not set — audit outbox worker disabled")
+	}
 
 	g.Go(func() error {
 		slog.Info("gRPC server starting", "port", cfg.Server.GRPCPort)

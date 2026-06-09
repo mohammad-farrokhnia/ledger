@@ -2,8 +2,8 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -42,6 +42,11 @@ func NewGateway(ctx context.Context, grpcAddr string, ping PingFunc) (http.Handl
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		writeResponse(w, []byte(swaggerUIHTML))
 	})
+	mux.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		writeResponse(w, swaggerJSON)
+	})
 
 	return mux, nil
 }
@@ -52,7 +57,7 @@ func healthHandler(ping PingFunc) http.HandlerFunc {
 
 		if err := ping(r.Context()); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
+			jsonEncode(w, map[string]string{
 				"status": "degraded",
 				"reason": "database unreachable",
 			})
@@ -60,7 +65,7 @@ func healthHandler(ping PingFunc) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"}) //nolint:errcheck
+		jsonEncode(w, map[string]string{"status": "ok"})
 	}
 }
 
@@ -71,3 +76,9 @@ func writeResponse(w http.ResponseWriter, data []byte) {
 	}
 }
 
+func jsonEncode(w http.ResponseWriter, data interface{}) {
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		panic(err)
+	}
+}
