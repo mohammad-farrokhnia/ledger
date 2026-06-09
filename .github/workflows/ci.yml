@@ -1,7 +1,10 @@
 name: CI
 
 on:
-  workflow_dispatch: # manual trigger only — re-add push/pull_request when team grows
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
 
 jobs:
   lint:
@@ -42,9 +45,13 @@ jobs:
           go-version: '1.26'
           cache: true
       - run: go mod download
+      - name: Run migrations on test DB
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.1/migrate.linux-amd64.tar.gz | tar xvz
+          ./migrate -path migrations -database "postgres://postgres:postgres@localhost:5432/ledger_test?sslmode=disable" up
       - run: go test -race -count=1 -timeout 120s ./...
         env:
-          DB_DSN: postgres://postgres:postgres@localhost:5432/ledger_test?sslmode=disable
+          DB_DSN_TEST: postgres://postgres:postgres@localhost:5432/ledger_test?sslmode=disable
 
   build:
     name: Build
