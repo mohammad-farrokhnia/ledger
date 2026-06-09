@@ -64,28 +64,6 @@ func healthHandler(ping PingFunc) http.HandlerFunc {
 	}
 }
 
-const swaggerUIHTML = `<!DOCTYPE html>
-<html>
-<head>
-  <title>go-ledger API</title>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" type="text/css"
-    href="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui.css">
-</head>
-<body>
-<div id="swagger-ui"></div>
-<script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist/swagger-ui-bundle.js"></script>
-<script>
-  SwaggerUIBundle({
-    url: "/swagger.json",
-    dom_id: '#swagger-ui',
-    presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
-    layout: "BaseLayout"
-  })
-</script>
-</body>
-</html>`
 func writeResponse(w http.ResponseWriter, data []byte) {
 	_, err := w.Write(data)
 	if err != nil {
