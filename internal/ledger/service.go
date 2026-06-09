@@ -3,8 +3,6 @@ package ledger
 import (
 	"context"
 	"strings"
-
-	"log/slog"
 )
 
 type (
@@ -24,12 +22,11 @@ type (
 	}
 	Service struct {
 		store   Store
-		auditor Auditor
 	}
 )
 
-func NewService(s Store, a Auditor) *Service {
-	return &Service{store: s, auditor: a}
+func NewService(s Store) *Service {
+	return &Service{store: s}
 }
 
 func (s *Service) CreateAccount(ctx context.Context, name string, accountType AccountType, currencyCode string) (Account, error) {
@@ -95,7 +92,6 @@ func (s *Service) CreateTransaction(ctx context.Context, params CreateTransactio
 	if err != nil {
 		return Transaction{}, err
 	}
-	s.logAudit(ctx, tx)
 	return tx, nil
 }
 
@@ -121,23 +117,6 @@ func (s *Service) GetWalletHistory(ctx context.Context, accountID string, limit,
 		Limit:     limit,
 		Offset:    offset,
 	})
-}
-
-func (s *Service) logAudit(ctx context.Context, tx Transaction) {
-	err := s.auditor.Log(ctx, AuditEntry{
-		ActionType: "transaction.created",
-		Payload: map[string]any{
-			"transaction_id":  tx.ID,
-			"from_account_id": tx.FromAccountID,
-			"to_account_id":   tx.ToAccountID,
-			"amount":          tx.Amount,
-			"currency_code":   tx.CurrencyCode,
-			"status":          string(tx.Status),
-		},
-	})
-	if err != nil {
-		slog.Error("failed to log audit entry", "error", err)
-	}
 }
 
 func validateCurrencyCode(code string) error {
