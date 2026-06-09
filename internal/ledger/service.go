@@ -2,7 +2,12 @@ package ledger
 
 import (
 	"context"
+	"regexp"
 	"strings"
+)
+
+var uuidRegex = regexp.MustCompile(
+	`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`,
 )
 
 type (
@@ -21,7 +26,7 @@ type (
 		CurrencyCode   string
 	}
 	Service struct {
-		store   Store
+		store Store
 	}
 )
 
@@ -53,6 +58,9 @@ func (s *Service) GetAccount(ctx context.Context, id string) (Account, error) {
 	if id == "" {
 		return Account{}, NewValidationError("account ID cannot be empty")
 	}
+	if err := validateUUID(id, "account ID"); err != nil {
+		return Account{}, err
+	}
 
 	return s.store.GetAccount(ctx, id)
 }
@@ -60,6 +68,9 @@ func (s *Service) GetAccount(ctx context.Context, id string) (Account, error) {
 func (s *Service) GetBalance(ctx context.Context, accountID string) (int64, error) {
 	if accountID == "" {
 		return 0, NewValidationError("account ID cannot be empty")
+	}
+	if err := validateUUID(accountID, "account ID"); err != nil {
+		return 0, err
 	}
 
 	return s.store.GetBalance(ctx, accountID)
@@ -79,6 +90,13 @@ func (s *Service) CreateTransaction(ctx context.Context, params CreateTransactio
 	}
 
 	if err := validateCurrencyCode(params.CurrencyCode); err != nil {
+		return Transaction{}, err
+	}
+
+	if err := validateUUID(params.FromAccountID, "from account ID"); err != nil {
+		return Transaction{}, err
+	}
+	if err := validateUUID(params.ToAccountID, "to account ID"); err != nil {
 		return Transaction{}, err
 	}
 
@@ -141,6 +159,16 @@ func validateAccountType(t AccountType) error {
 	default:
 		return ErrInvalidAccountType
 	}
+}
+
+func validateUUID(id, field string) error {
+	if id == "" {
+		return NewValidationError(field + " cannot be empty")
+	}
+	if !uuidRegex.MatchString(strings.ToLower(id)) {
+		return NewValidationError(field + " must be a valid UUID")
+	}
+	return nil
 }
 
 var _ Servicer = (*Service)(nil)
