@@ -31,7 +31,7 @@ func (h *Handler) CreateWallet(ctx context.Context, req *ledgerv1.CreateWalletRe
 
 	acc, err := h.svc.CreateAccount(ctx, req.Name, protoAccountTypeToDomain(req.Type), req.CurrencyCode)
 	if err != nil {
-		slog.ErrorContext(ctx, "CreateWallet failed", "error", err)
+		logHandlerError(ctx, "CreateWallet", err)
 		return nil, domainErrorToGRPC(err)
 	}
 
