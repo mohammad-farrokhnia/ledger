@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -15,20 +14,50 @@ import (
 	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
 )
 
-type ErrorResponse struct {
-	Success bool        `json:"success"`
-	Error   ErrorDetail `json:"error"`
-	Meta    Meta        `json:"meta"`
-}
-
-type ErrorDetail struct {
-	Code       string `json:"code"`
-	Message    string `json:"message"`
-	HTTPStatus int    `json:"http_status"`
-}
+const (
+	appName    = "go-ledger"
+	appVersion = "1.0.0"
+)
 
 type Meta struct {
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	Code      int    `json:"code"`
+	Message   string `json:"message"`
 	Timestamp string `json:"timestamp"`
+}
+
+type Response struct {
+	Data map[string]any `json:"data"`
+	Meta Meta           `json:"meta"`
+}
+
+func newMeta(httpCode int, message string) Meta {
+	return Meta{
+		Name:      appName,
+		Version:   appVersion,
+		Code:      httpCode,
+		Message:   message,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+func SuccessResponse(httpCode int, data map[string]any) Response {
+	d := map[string]any{"success": true}
+	for k, v := range data {
+		d[k] = v
+	}
+	return Response{
+		Data: d,
+		Meta: newMeta(httpCode, http.StatusText(httpCode)),
+	}
+}
+
+func errorResponse(httpCode int, message string) Response {
+	return Response{
+		Data: map[string]any{"success": false},
+		Meta: newMeta(httpCode, message),
+	}
 }
 
 var grpcToHTTPStatus = map[codes.Code]int{
@@ -43,40 +72,28 @@ var grpcToHTTPStatus = map[codes.Code]int{
 	codes.Unavailable:        http.StatusServiceUnavailable,
 }
 
-func CustomErrorHandler(ctx context.Context, mux *runtime.ServeMux, m runtime.Marshaler, w http.ResponseWriter, r *http.Request, err error) {
+func CustomErrorHandler(
+	ctx context.Context,
+	mux *runtime.ServeMux,
+	m runtime.Marshaler,
+	w http.ResponseWriter,
+	r *http.Request,
+	err error,
+) {
 	lang := i18n.Parse(r.Header.Get("Accept-Language"))
-
 	s, _ := status.FromError(err)
 	code := s.Code()
-	httpStatus := grpcToHTTPStatus[code]
-	if httpStatus == 0 {
+
+	httpStatus, ok := grpcToHTTPStatus[code]
+	if !ok {
 		httpStatus = http.StatusInternalServerError
 	}
 
 	message := localizedMessage(s.Message(), lang)
 
-	resp := ErrorResponse{
-		Success: false,
-		Error: ErrorDetail{
-			Code:       code.String(),
-			Message:    message,
-			HTTPStatus: httpStatus,
-		},
-		Meta: Meta{
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		},
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(httpStatus)
-	jsonEncoder(w, resp)
-}
-
-func jsonEncoder(w http.ResponseWriter, resp interface{}) {
-	e := json.NewEncoder(w).Encode(resp)
-	if e != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	jsonEncode(w, errorResponse(httpStatus, message))
 }
 
 func localizedMessage(grpcMessage string, lang i18n.Lang) string {
@@ -98,9 +115,5 @@ func localizedMessage(grpcMessage string, lang i18n.Lang) string {
 		}
 	}
 
-	if grpcMessage == "an internal error occurred" {
-		return i18n.Message(errors.New("internal"), lang)
-	}
-
-	return grpcMessage
+	return i18n.Message(errors.New("internal"), lang)
 }

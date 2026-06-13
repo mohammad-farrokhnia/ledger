@@ -24,8 +24,7 @@ build:
 
 ## run: run the service locally
 run:
-	go run ./cmd/ledger
-
+	-go run ./cmd/ledger
 
 ## up: start containers
 up:

@@ -29,7 +29,7 @@ func NewWorker(store ledger.OutboxStore, hookURL string, interval time.Duration)
 }
 
 func (w *Worker) Run(ctx context.Context) {
-	slog.Info("audit outbox worker started", "interval", w.interval, "hook_url", w.hookURL)
+	slog.Info("audit outbox worker started", "interval", w.interval.String(), "hook_url", w.hookURL)
 
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()

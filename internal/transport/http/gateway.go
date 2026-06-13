@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	ledgerv1 "github.com/mohammad-farrokhnia/go-ledger/api/proto/ledger/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var swaggerJSON []byte
@@ -20,8 +21,15 @@ var swaggerJSON []byte
 type PingFunc func(ctx context.Context) error
 
 func NewGateway(ctx context.Context, grpcAddr string, ping PingFunc) (http.Handler, error) {
+
 	gwMux := runtime.NewServeMux(
 		runtime.WithErrorHandler(CustomErrorHandler),
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
+			MarshalOptions: protojson.MarshalOptions{
+				EmitUnpopulated: true,
+				UseProtoNames:   false,
+			},
+		}),
 	)
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -44,7 +52,6 @@ func NewGateway(ctx context.Context, grpcAddr string, ping PingFunc) (http.Handl
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		writeResponse(w, swaggerJSON)
 	})
-
 	return mux, nil
 }
 
@@ -52,17 +59,17 @@ func healthHandler(ping PingFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		if err := ping(r.Context()); err != nil {
+		dbOK := ping(r.Context()) == nil
+
+		if !dbOK {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			jsonEncode(w, map[string]string{
-				"status": "degraded",
-				"reason": "database unreachable",
-			})
+			jsonEncode(w, errorResponse(http.StatusServiceUnavailable, "database unreachable"))
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		jsonEncode(w, map[string]string{"status": "ok"})
+		jsonEncode(w, SuccessResponse(http.StatusOK, map[string]any{
+			"db": dbOK,
+		}))
 	}
 }
 
