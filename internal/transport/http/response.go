@@ -2,7 +2,7 @@ package http
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -14,53 +14,7 @@ import (
 	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
 )
 
-const (
-	appName    = "go-ledger"
-	appVersion = "1.0.0"
-)
-
-type Meta struct {
-	Name      string `json:"name"`
-	Version   string `json:"version"`
-	Code      int    `json:"code"`
-	Message   string `json:"message"`
-	Timestamp string `json:"timestamp"`
-}
-
-type Response struct {
-	Data map[string]any `json:"data"`
-	Meta Meta           `json:"meta"`
-}
-
-func newMeta(httpCode int, message string) Meta {
-	return Meta{
-		Name:      appName,
-		Version:   appVersion,
-		Code:      httpCode,
-		Message:   message,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	}
-}
-
-func SuccessResponse(httpCode int, data map[string]any) Response {
-	d := map[string]any{"success": true}
-	for k, v := range data {
-		d[k] = v
-	}
-	return Response{
-		Data: d,
-		Meta: newMeta(httpCode, http.StatusText(httpCode)),
-	}
-}
-
-func errorResponse(httpCode int, message string) Response {
-	return Response{
-		Data: map[string]any{"success": false},
-		Meta: newMeta(httpCode, message),
-	}
-}
-
-var grpcToHTTPStatus = map[codes.Code]int{
+var grpcToHTTP = map[codes.Code]int{
 	codes.OK:                 http.StatusOK,
 	codes.NotFound:           http.StatusNotFound,
 	codes.InvalidArgument:    http.StatusBadRequest,
@@ -72,48 +26,113 @@ var grpcToHTTPStatus = map[codes.Code]int{
 	codes.Unavailable:        http.StatusServiceUnavailable,
 }
 
+var grpcToMessageCode = map[string]i18n.MessageCode{
+	ledger.ErrAccountNotFound.Error():      i18n.MsgAccountNotFound,
+	ledger.ErrTransactionNotFound.Error():  i18n.MsgTransactionNotFound,
+	ledger.ErrInsufficientFunds.Error():    i18n.MsgInsufficientFunds,
+	ledger.ErrCurrencyMismatch.Error():     i18n.MsgCurrencyMismatch,
+	ledger.ErrDuplicateTransaction.Error(): i18n.MsgDuplicateTransaction,
+	ledger.ErrInvalidAmount.Error():        i18n.MsgInvalidAmount,
+	ledger.ErrSameAccount.Error():          i18n.MsgSameAccount,
+	ledger.ErrInvalidAccountType.Error():   i18n.MsgInvalidAccountType,
+	ledger.ErrInvalidCurrencyCode.Error():  i18n.MsgInvalidCurrencyCode,
+}
+
+type Meta struct {
+	AppName     string `json:"appName"`
+	Version     string `json:"version"`
+	Timestamp   string `json:"timestamp"`
+	MessageCode string `json:"messageCode"`
+	Message     string `json:"message"`
+}
+
+func newMeta(acceptLang string, code i18n.MessageCode) Meta {
+	return Meta{
+		AppName:     appName,
+		Version:     appVersion,
+		Timestamp:   time.Now().UTC().Format(time.RFC3339),
+		MessageCode: string(code),
+		Message:     i18n.Translate(acceptLang, code),
+	}
+}
+
+const (
+	appName    = "go-ledger"
+	appVersion = "1.0.0"
+)
+
 func CustomErrorHandler(
-	ctx context.Context,
-	mux *runtime.ServeMux,
-	m runtime.Marshaler,
+	_ context.Context,
+	_ *runtime.ServeMux,
+	_ runtime.Marshaler,
 	w http.ResponseWriter,
 	r *http.Request,
 	err error,
 ) {
-	lang := i18n.Parse(r.Header.Get("Accept-Language"))
+	lang := r.Header.Get("Accept-Language")
 	s, _ := status.FromError(err)
-	code := s.Code()
 
-	httpStatus, ok := grpcToHTTPStatus[code]
+	httpCode, ok := grpcToHTTP[s.Code()]
 	if !ok {
-		httpStatus = http.StatusInternalServerError
+		httpCode = http.StatusInternalServerError
 	}
 
-	message := localizedMessage(s.Message(), lang)
+	msgCode, errCode := resolveErrorCodes(s.Code(), s.Message())
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(httpStatus)
-	jsonEncode(w, errorResponse(httpStatus, message))
+	w.WriteHeader(httpCode)
+	json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
+		"error": map[string]any{"code": errCode},
+		"meta":  newMeta(lang, msgCode),
+	})
+}
+func resolveErrorCodes(code codes.Code, message string) (i18n.MessageCode, string) {
+	if msgCode, ok := grpcToMessageCode[message]; ok {
+		return msgCode, string(msgCode)
+	}
+
+	switch code {
+	case codes.InvalidArgument:
+		return i18n.MsgValidationFailed, string(i18n.MsgValidationFailed)
+	case codes.NotFound:
+		return i18n.MsgNotFound, string(i18n.MsgNotFound)
+	case codes.AlreadyExists:
+		return i18n.MsgConflict, string(i18n.MsgConflict)
+	case codes.FailedPrecondition:
+		return i18n.MsgInsufficientFunds, string(i18n.MsgInsufficientFunds)
+	default:
+		return i18n.MsgInternalError, string(i18n.MsgInternalError)
+	}
 }
 
-func localizedMessage(grpcMessage string, lang i18n.Lang) string {
-	domainErrors := []error{
-		ledger.ErrAccountNotFound,
-		ledger.ErrTransactionNotFound,
-		ledger.ErrInsufficientFunds,
-		ledger.ErrCurrencyMismatch,
-		ledger.ErrDuplicateTransaction,
-		ledger.ErrInvalidAmount,
-		ledger.ErrSameAccount,
-		ledger.ErrInvalidAccountType,
-		ledger.ErrInvalidCurrencyCode,
-	}
 
-	for _, domainErr := range domainErrors {
-		if grpcMessage == domainErr.Error() {
-			return i18n.Message(domainErr, lang)
+func healthHandler(ping PingFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		lang := r.Header.Get("Accept-Language")
+		dbOK := ping(r.Context()) == nil
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if !dbOK {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
+				"data": map[string]any{
+					"status": "unavailable",
+					"checks": map[string]string{"postgres": "unavailable"},
+				},
+				"meta": newMeta(lang, i18n.MsgInternalError),
+			})
+			return
 		}
-	}
 
-	return i18n.Message(errors.New("internal"), lang)
+		json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
+			"data": map[string]any{
+				"status":  "ok",
+				"version": appVersion,
+				"app":     appName,
+				"checks":  map[string]string{"postgres": "ok"},
+			},
+			"meta": newMeta(lang, i18n.MsgHealthOK),
+		})
+	}
 }

@@ -3,13 +3,6 @@ package i18n
 
 import "github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
 
-type Lang string
-
-const (
-	LangEN Lang = "en"
-	LangFA Lang = "fa"
-)
-
 var catalog = map[string]map[Lang]string{
 	"account_not_found": {
 		LangEN: "account not found",

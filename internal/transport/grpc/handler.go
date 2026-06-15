@@ -149,6 +149,9 @@ func classifyError(err error) string {
 		errors.Is(err, ledger.ErrInvalidCurrencyCode),
 		errors.Is(err, ledger.ErrInvalidAccountType):
 		return "invalid_input"
+	case errors.Is(err, ledger.ErrAccountNotFound),
+		errors.Is(err, ledger.ErrTransactionNotFound):
+		return "not_found"
 	default:
 		return "internal"
 	}
