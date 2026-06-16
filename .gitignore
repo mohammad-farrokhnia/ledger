@@ -35,3 +35,4 @@ configs/config.yaml
 # Editor/IDE
 .idea/
 .vscode/
+graphify-out/
