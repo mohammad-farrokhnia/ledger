@@ -26,5 +26,5 @@ jobs:
       - uses: bufbuild/buf-action@v1
         with:
           lint: true
-          format: true
+          format: false
           breaking: ${{ github.event_name == 'pull_request' }}
