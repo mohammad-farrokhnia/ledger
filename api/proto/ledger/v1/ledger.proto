@@ -2,11 +2,11 @@ syntax = "proto3";
 
 package ledger.v1;
 
-option go_package = "github.com/mohammad-farrokhnia/go-ledger/api/proto/ledger/v1;ledgerv1";
-
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
+
+option go_package = "github.com/mohammad-farrokhnia/go-ledger/api/proto/ledger/v1;ledgerv1";
 
 option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
   info: {
@@ -116,9 +116,7 @@ service LedgerService {
   }
 
   rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse) {
-    option (google.api.http) = {
-      get: "/v1/wallets/{wallet_id}/balance"
-    };
+    option (google.api.http) = {get: "/v1/wallets/{wallet_id}/balance"};
   }
 
   rpc CreateTransaction(CreateTransactionRequest) returns (CreateTransactionResponse) {
@@ -129,8 +127,6 @@ service LedgerService {
   }
 
   rpc GetWalletHistory(GetWalletHistoryRequest) returns (GetWalletHistoryResponse) {
-    option (google.api.http) = {
-      get: "/v1/wallets/{wallet_id}/history"
-    };
+    option (google.api.http) = {get: "/v1/wallets/{wallet_id}/history"};
   }
 }
