@@ -1,0 +1,50 @@
+version: "2"
+run:
+  timeout: 5m
+  go: '1.26'
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - revive
+    - exhaustive
+    - noctx
+    - bodyclose
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+        - name: redefines-builtin-id
+          severity: warning
+        - name: unexported-return
+          severity: warning
+        - name: blank-imports
+          severity: warning
+    exhaustive:
+      default-signifies-exhaustive: true
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [errcheck, noctx]
+      - path: tests/
+        linters: [errcheck, noctx, revive]
+      - path: docs/
+        linters: [all]
+      - path: pkg/i18n/fa\.go
+        linters: [staticcheck]
+
+formatters:
+  enable:
+    - gofmt
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

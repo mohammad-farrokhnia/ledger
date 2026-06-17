@@ -1,0 +1,14 @@
+server:
+  grpc_port: "9090"
+  http_port: "8080"
+  metrics_port: "9091"
+
+database:
+  dsn: "postgres://postgres:postgres@localhost:5432/ledger?sslmode=disable"
+
+audit:
+  mode: "async"
+  hook_url: ""
+
+log:
+  level: "debug"

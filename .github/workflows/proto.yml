@@ -1,0 +1,30 @@
+name: Proto
+
+on:
+  pull_request:
+    paths:
+      - 'api/proto/**'
+      - 'buf.yaml'
+      - 'buf.gen.yaml'
+  push:
+    branches: [master, develop]
+    paths:
+      - 'api/proto/**'
+      - 'buf.yaml'
+      - 'buf.gen.yaml'
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Buf lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-action@v1
+        with:
+          lint: true
+          format: false
+          breaking: ${{ github.event_name == 'pull_request' }}
