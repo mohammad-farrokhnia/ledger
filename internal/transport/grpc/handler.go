@@ -31,7 +31,7 @@ func (h *Handler) CreateWallet(ctx context.Context, req *ledgerv1.CreateWalletRe
 
 	acc, err := h.svc.CreateAccount(ctx, req.Name, protoAccountTypeToDomain(req.Type), req.CurrencyCode)
 	if err != nil {
-		slog.ErrorContext(ctx, "CreateWallet failed", "error", err)
+		logHandlerError(ctx, "CreateWallet", err)
 		return nil, domainErrorToGRPC(err)
 	}
 
@@ -149,6 +149,9 @@ func classifyError(err error) string {
 		errors.Is(err, ledger.ErrInvalidCurrencyCode),
 		errors.Is(err, ledger.ErrInvalidAccountType):
 		return "invalid_input"
+	case errors.Is(err, ledger.ErrAccountNotFound),
+		errors.Is(err, ledger.ErrTransactionNotFound):
+		return "not_found"
 	default:
 		return "internal"
 	}

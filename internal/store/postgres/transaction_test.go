@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,16 @@ import (
 	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
 	"github.com/mohammad-farrokhnia/go-ledger/internal/store/postgres"
 )
+
+func newKey() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
 
 func setupStore(t *testing.T) *postgres.Store {
 	t.Helper()
@@ -61,14 +72,13 @@ func seedWallets(t *testing.T, s *postgres.Store, amount int64) (string, string)
 	return sys.ID, usr.ID
 }
 
-
 func TestCreateTransaction_Success(t *testing.T) {
 	s := setupStore(t)
 	ctx := context.Background()
 	sysID, userID := seedWallets(t, s, 1000)
 
 	tx, err := s.CreateTransaction(ctx, ledger.CreateTransactionParams{
-		IdempotencyKey: "a0000000-0000-0000-0000-000000000001",
+		IdempotencyKey: newKey(),
 		FromAccountID:  userID,
 		ToAccountID:    sysID,
 		Amount:         100,
@@ -96,7 +106,7 @@ func TestCreateTransaction_InsufficientFunds(t *testing.T) {
 	sysID, userID := seedWallets(t, s, 50)
 
 	_, err := s.CreateTransaction(ctx, ledger.CreateTransactionParams{
-		IdempotencyKey: "b0000000-0000-0000-0000-000000000001",
+		IdempotencyKey: newKey(),
 		FromAccountID:  userID,
 		ToAccountID:    sysID,
 		Amount:         100,
@@ -118,7 +128,7 @@ func TestCreateTransaction_Idempotency(t *testing.T) {
 	sysID, userID := seedWallets(t, s, 1000)
 
 	params := ledger.CreateTransactionParams{
-		IdempotencyKey: "d0000000-0000-0000-0000-000000000001",
+		IdempotencyKey: newKey(),
 		FromAccountID:  userID,
 		ToAccountID:    sysID,
 		Amount:         100,
@@ -157,7 +167,7 @@ func TestCreateTransaction_CurrencyMismatch(t *testing.T) {
 	})
 
 	_, err := s.CreateTransaction(ctx, ledger.CreateTransactionParams{
-		IdempotencyKey: "e0000000-0000-0000-0000-000000000001",
+		IdempotencyKey: newKey(),
 		FromAccountID:  usd.ID,
 		ToAccountID:    irr.ID,
 		Amount:         100,
@@ -189,7 +199,7 @@ func TestCreateTransaction_ConcurrentDeductions(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 
-			key := fmt.Sprintf("f0000000-0000-0000-0000-%012d", i)
+			key := newKey()
 
 			_, err := s.CreateTransaction(ctx, ledger.CreateTransactionParams{
 				IdempotencyKey: key,
@@ -250,7 +260,7 @@ func TestCreateTransaction_ConcurrentContention(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 
-			key := fmt.Sprintf("a1000000-0000-0000-0000-%012d", i)
+			key := newKey()
 
 			_, err := s.CreateTransaction(ctx, ledger.CreateTransactionParams{
 				IdempotencyKey: key,

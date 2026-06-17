@@ -2,9 +2,12 @@ package ledger
 
 import (
 	"context"
+	"regexp"
 	"strings"
+)
 
-	"log/slog"
+var uuidRegex = regexp.MustCompile(
+	`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`,
 )
 
 type (
@@ -23,13 +26,12 @@ type (
 		CurrencyCode   string
 	}
 	Service struct {
-		store   Store
-		auditor Auditor
+		store Store
 	}
 )
 
-func NewService(s Store, a Auditor) *Service {
-	return &Service{store: s, auditor: a}
+func NewService(s Store) *Service {
+	return &Service{store: s}
 }
 
 func (s *Service) CreateAccount(ctx context.Context, name string, accountType AccountType, currencyCode string) (Account, error) {
@@ -56,6 +58,9 @@ func (s *Service) GetAccount(ctx context.Context, id string) (Account, error) {
 	if id == "" {
 		return Account{}, NewValidationError("account ID cannot be empty")
 	}
+	if err := validateUUID(id, "account ID"); err != nil {
+		return Account{}, err
+	}
 
 	return s.store.GetAccount(ctx, id)
 }
@@ -63,6 +68,9 @@ func (s *Service) GetAccount(ctx context.Context, id string) (Account, error) {
 func (s *Service) GetBalance(ctx context.Context, accountID string) (int64, error) {
 	if accountID == "" {
 		return 0, NewValidationError("account ID cannot be empty")
+	}
+	if err := validateUUID(accountID, "account ID"); err != nil {
+		return 0, err
 	}
 
 	return s.store.GetBalance(ctx, accountID)
@@ -85,6 +93,13 @@ func (s *Service) CreateTransaction(ctx context.Context, params CreateTransactio
 		return Transaction{}, err
 	}
 
+	if err := validateUUID(params.FromAccountID, "from account ID"); err != nil {
+		return Transaction{}, err
+	}
+	if err := validateUUID(params.ToAccountID, "to account ID"); err != nil {
+		return Transaction{}, err
+	}
+
 	tx, err := s.store.CreateTransaction(ctx, CreateTransactionParams{
 		IdempotencyKey: params.IdempotencyKey,
 		FromAccountID:  params.FromAccountID,
@@ -95,7 +110,6 @@ func (s *Service) CreateTransaction(ctx context.Context, params CreateTransactio
 	if err != nil {
 		return Transaction{}, err
 	}
-	s.logAudit(ctx, tx)
 	return tx, nil
 }
 
@@ -123,23 +137,6 @@ func (s *Service) GetWalletHistory(ctx context.Context, accountID string, limit,
 	})
 }
 
-func (s *Service) logAudit(ctx context.Context, tx Transaction) {
-	err := s.auditor.Log(ctx, AuditEntry{
-		ActionType: "transaction.created",
-		Payload: map[string]any{
-			"transaction_id":  tx.ID,
-			"from_account_id": tx.FromAccountID,
-			"to_account_id":   tx.ToAccountID,
-			"amount":          tx.Amount,
-			"currency_code":   tx.CurrencyCode,
-			"status":          string(tx.Status),
-		},
-	})
-	if err != nil {
-		slog.Error("failed to log audit entry", "error", err)
-	}
-}
-
 func validateCurrencyCode(code string) error {
 	upper := strings.ToUpper(code)
 	if len(upper) != 3 {
@@ -162,6 +159,16 @@ func validateAccountType(t AccountType) error {
 	default:
 		return ErrInvalidAccountType
 	}
+}
+
+func validateUUID(id, field string) error {
+	if id == "" {
+		return NewValidationError(field + " cannot be empty")
+	}
+	if !uuidRegex.MatchString(strings.ToLower(id)) {
+		return NewValidationError(field + " must be a valid UUID")
+	}
+	return nil
 }
 
 var _ Servicer = (*Service)(nil)

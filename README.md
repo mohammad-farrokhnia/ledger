@@ -15,9 +15,9 @@ graph TD
 
     B --> G[ledger.Service]
     G -->|Store interface| H[postgres.Store]
-    G -->|Auditor interface| I[audit.WebhookAuditor]
+    G -->|OutboxStore interface| I[audit.Worker]
     H -->|SELECT FOR UPDATE| J[(PostgreSQL 16)]
-    I -->|POST /ingest| K[go-ingestor]
+    I -->|polls outbox, POST /ingest| K[go-ingestor]
 ```
 
 ### Why hexagonal architecture
@@ -29,8 +29,8 @@ go-ledger has three input transports: gRPC, HTTP Gateway, and a future event con
 ```
 cmd/ledger (composition root)
     ↓
-internal/ledger (domain: types + Store port + Auditor port + Service)
-    ↓ implements Store          ↓ implements Auditor
+internal/ledger (domain: types + Store port + OutboxStore port + Service)
+    ↓ implements Store          ↓ implements OutboxStore
 internal/store/postgres     internal/audit
     ↓
 PostgreSQL
@@ -86,6 +86,14 @@ Server → sees ON CONFLICT DO NOTHING, returns original transaction
 Money → moved exactly once
 ```
 
+## API Documentation
+
+Swagger UI is available at `http://localhost:8080/swagger/` when the service is running. The raw OpenAPI spec is at `http://localhost:8080/swagger.json`.
+
+## i18n
+
+Error messages are translated based on the client's `Accept-Language` header. Supported languages: **English** (default) and **Farsi**. Every error response includes a `messageCode` field (e.g. `INSUFFICIENT_FUNDS`) that clients can use to render their own localized strings independently of the server-side translations.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -99,31 +107,32 @@ Money → moved exactly once
 | Logging | `log/slog` (JSON) |
 | Metrics | Prometheus |
 | Config | koanf |
+| i18n | Built-in (English + Farsi) |
 
 ## Quick Start
 
 **Prerequisites:** Go 1.26+, Docker, `buf`, `golang-migrate`, `grpcurl`
 
 ```bash
-# Clone and set up environment
+# Clone and configure
 git clone https://github.com/mohammad-farrokhnia/go-ledger.git
 cd go-ledger
-cp .env.example .env
 cp configs/config.example.yaml configs/config.yaml
+# Edit configs/config.yaml — at minimum set database.dsn
 
 # Start Postgres
 make up
 
-# Run migrations
+# Run migrations (requires DB_DSN env var or set in .env)
 make migrate
 
 # Start the service
 make run
 ```
 
-The service starts three ports:
+The service starts two ports:
 - `:9090` — gRPC
-- `:8080` — HTTP gateway + Swagger UI (`/swagger/`) + health (`/healthz`) + metrics (`/metrics`)
+- `:8080` — HTTP gateway + Swagger UI (`/swagger/`) + health (`/health`) + metrics (`/metrics`)
 
 ## API Examples
 
@@ -179,14 +188,22 @@ grpcurl -plaintext -d '{
 ### Health check
 
 ```bash
-curl http://localhost:8080/health
-# {"status":"ok"}
+curl http://localhost:8080/health | jq .
+# {
+#   "data": {"status": "ok", "version": "1.0.0", "app": "go-ledger", "checks": {"postgres": "ok"}},
+#   "meta": {"appName": "go-ledger", "version": "1.0.0", "timestamp": "...", "messageCode": "HEALTH_OK", "message": "healthy"}
+# }
 ```
 
 ### Prometheus metrics
 
 ```bash
 curl http://localhost:8080/metrics | grep ledger
+# ledger_transactions_total{status="success",error_type=""}
+# ledger_transactions_total{status="fail",error_type="insufficient_funds"}
+# ledger_transaction_duration_seconds_*
+# ledger_db_errors_total
+# ledger_grpc_active_connections
 ```
 
 ## Developer Commands
@@ -207,18 +224,23 @@ make help          # list all targets
 
 ## Configuration
 
-Copy `.env.example` → `.env`. Never commit `.env`.
+The service loads `configs/config.yaml` first, then overlays any matching environment variables. Create your config by copying the template:
+
+```bash
+cp configs/config.example.yaml configs/config.yaml
+```
+
+The Makefile (`make migrate`, `make db`) reads a `.env` file for convenience — create one with `DB_DSN=...` if needed. Never commit `.env`.
 
 | Variable | Default | Description |
 |---|---|---|
 | `DB_DSN` | required | Postgres connection string |
 | `GRPC_PORT` | `9090` | gRPC server port |
-| `HTTP_PORT` | `8080` | HTTP gateway port |
-| `METRICS_PORT` | `9091` | Prometheus metrics port |
+| `HTTP_PORT` | `8080` | HTTP gateway port (also serves `/metrics`, `/health`, `/swagger/`) |
 | `AUDIT_MODE` | `async` | `sync` blocks, `async` fire-and-forget |
 | `AUDIT_HOOK_URL` | — | go-ingestor endpoint, disabled if empty |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
-| `COMPOSE_PROJECT_NAME` | `docker` | the group name of continer in docker |
+| `COMPOSE_PROJECT_NAME` | `docker` | Docker Compose project name |
 
 ## Running Tests
 
@@ -251,10 +273,12 @@ docker compose -f deployments/docker/docker-compose.yml up
 | `account not found` | `NOT_FOUND` | Account ID does not exist |
 | `transaction not found` | `NOT_FOUND` | Transaction ID does not exist |
 | `insufficient funds` | `FAILED_PRECONDITION` | Sender balance too low |
-| `currency mismatch` | `INVALID_ARGUMENT` | Accounts have different currencies |
+| `currency mismatch between accounts` | `INVALID_ARGUMENT` | Accounts have different currencies |
 | `transaction with this idempotency key already exists` | `ALREADY_EXISTS` | Duplicate — fetch original |
 | `amount must be greater than zero` | `INVALID_ARGUMENT` | Invalid amount |
 | `source and destination accounts must be different` | `INVALID_ARGUMENT` | Same account |
+| `invalid account type` | `INVALID_ARGUMENT` | Account type is not USER or SYSTEM |
+| `currency code must be a 3-letter ISO 4217 code` | `INVALID_ARGUMENT` | Malformed currency code |
 | `an internal error occurred` | `INTERNAL` | Server error (details logged server-side) |
 
 ## Project Structure
@@ -264,13 +288,18 @@ api/proto/ledger/v1/   proto definition + generated Go code
 cmd/ledger/            entrypoint — composition root only
 configs/               config.yaml template
 deployments/docker/    Dockerfile + docker-compose
+docs/                  API documentation
 internal/
-  audit/               Auditor implementations (NoOp, Webhook)
+  audit/               outbox worker — polls DB, POSTs events to webhook
   config/              koanf config loader
+  i18n/                error message translation (English + Farsi)
   ledger/              domain: types, errors, Store/Auditor ports, Service
   metrics/             Prometheus metric definitions
   store/postgres/      Postgres implementation of ledger.Store
   transport/grpc/      gRPC server, handler, interceptors, mappers
-  transport/http/      gRPC-Gateway, health check, Swagger UI
+  transport/http/      gRPC-Gateway, health check, Swagger UI, error handler
 migrations/            SQL migration files (up + down)
+pkg/
+  apperr/              structured application error type
+  response/            HTTP response envelope helpers
 ```

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -137,6 +138,25 @@ func (s *Store) CreateTransaction(ctx context.Context, params ledger.CreateTrans
 
 	if _, err = tx.Exec(ctx, updateBalanceQ, params.Amount, params.ToAccountID); err != nil {
 		return ledger.Transaction{}, fmt.Errorf("postgres: add balance: %w", err)
+	}
+
+	auditPayload, err := json.Marshal(map[string]any{
+		"transaction_id":  txID,
+		"from_account_id": params.FromAccountID,
+		"to_account_id":   params.ToAccountID,
+		"amount":          params.Amount,
+		"currency_code":   params.CurrencyCode,
+	})
+	if err != nil {
+		return ledger.Transaction{}, fmt.Errorf("postgres: marshal audit payload: %w", err)
+	}
+
+	const insertOutboxQ = `
+		INSERT INTO audit_outbox (action_type, payload)
+		VALUES ($1, $2)
+	`
+	if _, err = tx.Exec(ctx, insertOutboxQ, "transaction.created", auditPayload); err != nil {
+		return ledger.Transaction{}, fmt.Errorf("postgres: insert audit outbox: %w", err)
 	}
 
 	const completeTxQ = `

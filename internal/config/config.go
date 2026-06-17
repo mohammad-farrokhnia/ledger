@@ -43,13 +43,13 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	envMap := map[string]string{
-		"DB_DSN":        "database.dsn",
-		"GRPC_PORT":     "server.grpc_port",
-		"HTTP_PORT":     "server.http_port",
-		"METRICS_PORT":  "server.metrics_port",
-		"AUDIT_MODE":    "audit.mode",
+		"DB_DSN":         "database.dsn",
+		"GRPC_PORT":      "server.grpc_port",
+		"HTTP_PORT":      "server.http_port",
+		"METRICS_PORT":   "server.metrics_port",
+		"AUDIT_MODE":     "audit.mode",
 		"AUDIT_HOOK_URL": "audit.hook_url",
-		"LOG_LEVEL":     "log.level",
+		"LOG_LEVEL":      "log.level",
 	}
 
 	if err := k.Load(env.ProviderWithValue("", ".", func(s, v string) (string, interface{}) {

@@ -36,3 +36,13 @@ var (
 		},
 	)
 )
+
+func init() {
+	TransactionsTotal.WithLabelValues("success", "").Add(0)
+	TransactionsTotal.WithLabelValues("fail", "insufficient_funds").Add(0)
+	TransactionsTotal.WithLabelValues("fail", "currency_mismatch").Add(0)
+	TransactionsTotal.WithLabelValues("fail", "duplicate").Add(0)
+	TransactionsTotal.WithLabelValues("fail", "invalid_input").Add(0)
+	TransactionsTotal.WithLabelValues("fail", "not_found").Add(0)
+	TransactionsTotal.WithLabelValues("fail", "internal").Add(0)
+}

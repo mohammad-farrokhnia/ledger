@@ -6,8 +6,6 @@ export
         migrate migrate-down migrate-create \
         gen help
 
-# Development
-
 ## lint: run golangci-lint
 lint:
 	golangci-lint run ./...
@@ -26,9 +24,7 @@ build:
 
 ## run: run the service locally
 run:
-	go run ./cmd/ledger
-
-# Infrastructure
+	-go run ./cmd/ledger
 
 ## up: start containers
 up:
@@ -52,7 +48,6 @@ logs:
 db:
 	docker exec -it ledger-postgres psql -U postgres -d ledger
 
-# Migrations
 
 ## migrate: run all pending migrations (up)
 migrate:
@@ -72,16 +67,12 @@ migrate-test:
 migrate-down-test:
 	migrate -path migrations -database "$(DB_DSN_TEST)" down 1
 
-# Code Generation
 
 ## gen: generate Go code and Swagger from .proto files
 gen:
 	buf generate
 	cp api/openapi/ledger.swagger.json internal/transport/http/swagger.json
 
-# ============================================================
-# Help
-# ============================================================
 
 ## help: print this help message
 help:
