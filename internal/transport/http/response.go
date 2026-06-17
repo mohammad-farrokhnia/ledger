@@ -105,7 +105,6 @@ func resolveErrorCodes(code codes.Code, message string) (i18n.MessageCode, strin
 	}
 }
 
-
 func healthHandler(ping PingFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		lang := r.Header.Get("Accept-Language")

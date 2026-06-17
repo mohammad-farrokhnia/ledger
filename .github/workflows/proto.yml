@@ -1,7 +1,18 @@
 name: Proto
 
 on:
-  workflow_dispatch: # manual trigger only
+  pull_request:
+    paths:
+      - 'api/proto/**'
+      - 'buf.yaml'
+      - 'buf.gen.yaml'
+  push:
+    branches: [master, develop]
+    paths:
+      - 'api/proto/**'
+      - 'buf.yaml'
+      - 'buf.gen.yaml'
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -14,4 +25,4 @@ jobs:
           version: '1.34.0'
           lint: true
           format: true
-          breaking: false
+          breaking: ${{ github.event_name == 'pull_request' }}

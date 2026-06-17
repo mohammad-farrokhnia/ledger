@@ -158,7 +158,7 @@ func (s *Store) CreateTransaction(ctx context.Context, params ledger.CreateTrans
 	if _, err = tx.Exec(ctx, insertOutboxQ, "transaction.created", auditPayload); err != nil {
 		return ledger.Transaction{}, fmt.Errorf("postgres: insert audit outbox: %w", err)
 	}
-	
+
 	const completeTxQ = `
 		UPDATE transactions
 		SET status = 'COMPLETED'

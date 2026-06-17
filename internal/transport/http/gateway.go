@@ -16,7 +16,6 @@ import (
 	ledgerv1 "github.com/mohammad-farrokhnia/go-ledger/api/proto/ledger/v1"
 )
 
-
 //go:embed swagger.json
 var swaggerJSON []byte
 

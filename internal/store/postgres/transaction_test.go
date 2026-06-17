@@ -61,7 +61,6 @@ func seedWallets(t *testing.T, s *postgres.Store, amount int64) (string, string)
 	return sys.ID, usr.ID
 }
 
-
 func TestCreateTransaction_Success(t *testing.T) {
 	s := setupStore(t)
 	ctx := context.Background()

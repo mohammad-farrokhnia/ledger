@@ -94,7 +94,6 @@ func (m *mockStore) GetWalletHistory(_ context.Context, _ ledger.GetWalletHistor
 	return nil, nil
 }
 
-
 func TestService_CreateAccount_EmptyName(t *testing.T) {
 	svc := ledger.NewService(newMockStore())
 

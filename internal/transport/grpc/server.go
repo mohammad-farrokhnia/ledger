@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -30,7 +31,8 @@ func NewServer(svc ledger.Servicer) *Server {
 }
 
 func (s *Server) Start(port string) error {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
+	lc := net.ListenConfig{}
+	lis, err := lc.Listen(context.Background(), "tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		return fmt.Errorf("grpc: listen on port %s: %w", port, err)
 	}

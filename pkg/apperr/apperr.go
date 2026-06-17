@@ -25,17 +25,17 @@ const (
 // Code is a stable string identifier for each error condition.
 // Clients can rely on these — they never change.
 const (
-	ErrAccountNotFound     = "ACCOUNT_NOT_FOUND"
-	ErrTransactionNotFound = "TRANSACTION_NOT_FOUND"
-	ErrInsufficientFunds   = "INSUFFICIENT_FUNDS"
-	ErrCurrencyMismatch    = "CURRENCY_MISMATCH"
+	ErrAccountNotFound      = "ACCOUNT_NOT_FOUND"
+	ErrTransactionNotFound  = "TRANSACTION_NOT_FOUND"
+	ErrInsufficientFunds    = "INSUFFICIENT_FUNDS"
+	ErrCurrencyMismatch     = "CURRENCY_MISMATCH"
 	ErrDuplicateTransaction = "DUPLICATE_TRANSACTION"
-	ErrInvalidAmount       = "INVALID_AMOUNT"
-	ErrSameAccount         = "SAME_ACCOUNT"
-	ErrInvalidAccountType  = "INVALID_ACCOUNT_TYPE"
-	ErrInvalidCurrencyCode = "INVALID_CURRENCY_CODE"
-	ErrInternal            = "INTERNAL_ERROR"
-	ErrBadRequest          = "BAD_REQUEST"
+	ErrInvalidAmount        = "INVALID_AMOUNT"
+	ErrSameAccount          = "SAME_ACCOUNT"
+	ErrInvalidAccountType   = "INVALID_ACCOUNT_TYPE"
+	ErrInvalidCurrencyCode  = "INVALID_CURRENCY_CODE"
+	ErrInternal             = "INTERNAL_ERROR"
+	ErrBadRequest           = "BAD_REQUEST"
 )
 
 // codeToMessageCode maps error codes to i18n message codes.
@@ -84,9 +84,9 @@ func (e *AppError) Error() string {
 	return e.code
 }
 
-func (e *AppError) Code() string    { return e.code }
-func (e *AppError) Type() Type      { return e.errType }
-func (e *AppError) Unwrap() error   { return e.underlying }
+func (e *AppError) Code() string  { return e.code }
+func (e *AppError) Type() Type    { return e.errType }
+func (e *AppError) Unwrap() error { return e.underlying }
 
 func (e *AppError) WithContext(key string, val any) *AppError {
 	e.ctx[key] = val
@@ -113,8 +113,8 @@ func (e *AppError) HTTPStatus() int {
 }
 
 // Constructors.
-func NotFound(code string) *AppError     { return New(code, TypeNotFound) }
-func Validation(code string) *AppError   { return New(code, TypeValidation) }
-func Conflict(code string) *AppError     { return New(code, TypeConflict) }
-func Internal(code string) *AppError     { return New(code, TypeInternal) }
+func NotFound(code string) *AppError               { return New(code, TypeNotFound) }
+func Validation(code string) *AppError             { return New(code, TypeValidation) }
+func Conflict(code string) *AppError               { return New(code, TypeConflict) }
+func Internal(code string) *AppError               { return New(code, TypeInternal) }
 func InternalErr(code string, err error) *AppError { return NewWithErr(code, TypeInternal, err) }
