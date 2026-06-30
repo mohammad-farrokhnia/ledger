@@ -1,6 +1,3 @@
-// Package response provides the unified HTTP response envelope for go-ledger.
-// Every response — success or error — uses the same {data, meta} shape.
-// This mirrors the pattern from LibreCore's pkg/response package.
 package response
 
 import (
@@ -8,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/mohammad-farrokhnia/go-ledger/internal/i18n"
+	"github.com/mohammad-farrokhnia/ledger/internal/i18n"
 )
 
 var (
@@ -16,16 +13,11 @@ var (
 	version string
 )
 
-// Init sets the application name and version embedded in every Meta.
-// Call once from main() before starting the server.
 func Init(name, ver string) {
 	appName = name
 	version = ver
 }
 
-// Meta is present on every response.
-// MessageCode lets clients do their own i18n if needed.
-// Message is already translated to the caller's Accept-Language.
 type Meta struct {
 	AppName     string `json:"appName"`
 	Version     string `json:"version"`
@@ -46,7 +38,6 @@ func newMeta(requestID, acceptLang string, code i18n.MessageCode) Meta {
 	}
 }
 
-// OK writes a 200 success response.
 func OK(w http.ResponseWriter, r *http.Request, data any, code i18n.MessageCode) {
 	write(w, http.StatusOK, map[string]any{
 		"data": data,
@@ -54,7 +45,6 @@ func OK(w http.ResponseWriter, r *http.Request, data any, code i18n.MessageCode)
 	})
 }
 
-// Created writes a 201 created response.
 func Created(w http.ResponseWriter, r *http.Request, data any, code i18n.MessageCode) {
 	write(w, http.StatusCreated, map[string]any{
 		"data": data,
@@ -62,7 +52,6 @@ func Created(w http.ResponseWriter, r *http.Request, data any, code i18n.Message
 	})
 }
 
-// Error writes an error response with the given HTTP status.
 func Error(w http.ResponseWriter, r *http.Request, status int, code i18n.MessageCode) {
 	write(w, status, map[string]any{
 		"error": map[string]any{},

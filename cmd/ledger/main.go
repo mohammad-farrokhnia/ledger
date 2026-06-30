@@ -12,13 +12,13 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/mohammad-farrokhnia/go-ledger/internal/audit"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/config"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
-	_ "github.com/mohammad-farrokhnia/go-ledger/internal/metrics"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/store/postgres"
-	transportgrpc "github.com/mohammad-farrokhnia/go-ledger/internal/transport/grpc"
-	transporthttp "github.com/mohammad-farrokhnia/go-ledger/internal/transport/http"
+	"github.com/mohammad-farrokhnia/ledger/internal/audit"
+	"github.com/mohammad-farrokhnia/ledger/internal/config"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
+	_ "github.com/mohammad-farrokhnia/ledger/internal/metrics"
+	"github.com/mohammad-farrokhnia/ledger/internal/store/postgres"
+	transportgrpc "github.com/mohammad-farrokhnia/ledger/internal/transport/grpc"
+	transporthttp "github.com/mohammad-farrokhnia/ledger/internal/transport/http"
 )
 
 func main() {

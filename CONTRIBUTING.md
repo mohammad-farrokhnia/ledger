@@ -1,6 +1,6 @@
-# Contributing to go-ledger
+# Contributing to ledger
 
-Thank you for your interest in contributing to `go-ledger`! As a high-consistency financial service, we mastertain strict code quality standards.
+Thank you for your interest in contributing to `ledger`! As a high-consistency financial service, we mastertain strict code quality standards.
 
 ## 🌿 Branching Strategy
 

@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/store/postgres"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
+	"github.com/mohammad-farrokhnia/ledger/internal/store/postgres"
 )
 
 func newKey() string {

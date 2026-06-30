@@ -10,9 +10,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	ledgerv1 "github.com/mohammad-farrokhnia/go-ledger/api/proto/ledger/v1"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/metrics"
+	ledgerv1 "github.com/mohammad-farrokhnia/ledger/api/proto/ledger/v1"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
+	"github.com/mohammad-farrokhnia/ledger/internal/metrics"
 )
 
 type Handler struct {

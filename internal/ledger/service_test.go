@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
 )
 
 type mockStore struct {

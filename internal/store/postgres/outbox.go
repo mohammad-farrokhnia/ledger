@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
 )
 
 func (s *Store) PollAuditOutbox(ctx context.Context, limit int) ([]ledger.AuditOutboxEntry, error) {

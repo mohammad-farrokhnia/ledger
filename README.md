@@ -1,4 +1,4 @@
-# go-ledger
+# ledger
 
 A bank-grade financial transaction service built in Go. Designed to be the central financial brain that microservices talk to when they need to move value safely.
 
@@ -22,7 +22,7 @@ graph TD
 
 ### Why hexagonal architecture
 
-go-ledger has three input transports: gRPC, HTTP Gateway, and a future event consumer. Hexagonal architecture isolates the domain from all of them — the service layer never imports gRPC, HTTP, or Postgres packages. Each transport is a plug-in adapter.
+ledger has three input transports: gRPC, HTTP Gateway, and a future event consumer. Hexagonal architecture isolates the domain from all of them — the service layer never imports gRPC, HTTP, or Postgres packages. Each transport is a plug-in adapter.
 
 ### The dependency flow (strictly one-directional, no cycles)
 
@@ -115,8 +115,8 @@ Error messages are translated based on the client's `Accept-Language` header. Su
 
 ```bash
 # Clone and configure
-git clone https://github.com/mohammad-farrokhnia/go-ledger.git
-cd go-ledger
+git clone https://github.com/mohammad-farrokhnia/ledger.git
+cd ledger
 cp configs/config.example.yaml configs/config.yaml
 # Edit configs/config.yaml — at minimum set database.dsn
 
@@ -157,8 +157,9 @@ grpcurl -plaintext -d '{
 ### Top up a user wallet (mint money from SYSTEM)
 
 ```bash
+# idempotency_key must be a UUID — generate one before the call
 grpcurl -plaintext -d '{
-  "idempotency_key": "topup-alice-001",
+  "idempotency_key": "550e8400-e29b-41d4-a716-446655440001",
   "from_account_id": "<SYSTEM_ID>",
   "to_account_id": "<ALICE_ID>",
   "amount": 10000,
@@ -175,9 +176,9 @@ curl http://localhost:8080/v1/wallets/<ALICE_ID>/balance | jq .
 ### Retry with same idempotency key (safe — returns original)
 
 ```bash
-# Sending the same request again returns the original transaction, money moves once
+# Sending the same UUID again returns the original transaction, money moves once
 grpcurl -plaintext -d '{
-  "idempotency_key": "topup-alice-001",
+  "idempotency_key": "550e8400-e29b-41d4-a716-446655440001",
   "from_account_id": "<SYSTEM_ID>",
   "to_account_id": "<ALICE_ID>",
   "amount": 10000,
@@ -190,8 +191,8 @@ grpcurl -plaintext -d '{
 ```bash
 curl http://localhost:8080/health | jq .
 # {
-#   "data": {"status": "ok", "version": "1.0.0", "app": "go-ledger", "checks": {"postgres": "ok"}},
-#   "meta": {"appName": "go-ledger", "version": "1.0.0", "timestamp": "...", "messageCode": "HEALTH_OK", "message": "healthy"}
+#   "data": {"status": "ok", "version": "1.0.0", "app": "ledger", "checks": {"postgres": "ok"}},
+#   "meta": {"appName": "ledger", "version": "1.0.0", "timestamp": "...", "messageCode": "HEALTH_OK", "message": "healthy"}
 # }
 ```
 
@@ -212,14 +213,22 @@ curl http://localhost:8080/metrics | grep ledger
 make up            # start Postgres + pgAdmin (localhost:5050)
 make down          # stop containers, keep data
 make down-volumes  # stop containers, delete all data
-make migrate       # run migrations on dev DB
-make migrate-test  # run migrations on test DB
-make gen           # regenerate proto → Go + Swagger
+make migrate       # run migrations on dev DB (requires DB_DSN in .env or env)
+make migrate-test  # run migrations on test DB (requires DB_DSN_TEST)
+make gen           # regenerate proto → Go + Swagger (requires buf + protoc plugins)
 make lint          # run golangci-lint
 make test          # run all tests with -race flag
-make run           # run the service (reads .env)
+make run           # run the service (reads configs/config.yaml)
 make db            # open psql shell
 make help          # list all targets
+```
+
+`make gen` requires `buf` and the Go protoc plugins:
+```bash
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
+go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
 ```
 
 ## Configuration
@@ -244,8 +253,11 @@ The Makefile (`make migrate`, `make db`) reads a `.env` file for convenience —
 
 ## Running Tests
 
+Integration tests (postgres package) require a running Postgres instance and `DB_DSN_TEST`:
+
 ```bash
-# Ensure test DB is migrated
+# Set DB_DSN_TEST in your environment or .env, then migrate the test DB
+export DB_DSN_TEST="postgres://postgres:postgres@localhost:5432/ledger_test?sslmode=disable"
 make migrate-test
 
 # Run all tests including concurrency tests
@@ -257,10 +269,12 @@ make test
 # TestCreateTransaction_Idempotency           — same key twice, money moves once
 ```
 
+Unit tests (ledger package) use a mock store and run without Postgres. Integration tests skip automatically when `DB_DSN_TEST` is unset.
+
 ## Building the Docker Image
 
 ```bash
-docker build -f deployments/docker/Dockerfile -t go-ledger:latest .
+docker build -f deployments/docker/Dockerfile -t ledger:latest .
 
 # Run with docker compose (includes Postgres)
 docker compose -f deployments/docker/docker-compose.yml up
@@ -284,16 +298,15 @@ docker compose -f deployments/docker/docker-compose.yml up
 ## Project Structure
 
 ```
-api/proto/ledger/v1/   proto definition + generated Go code
+api/proto/ledger/v1/   ledger.proto — generated .pb.go files are gitignored (make gen)
 cmd/ledger/            entrypoint — composition root only
 configs/               config.yaml template
 deployments/docker/    Dockerfile + docker-compose
-docs/                  API documentation
 internal/
   audit/               outbox worker — polls DB, POSTs events to webhook
   config/              koanf config loader
   i18n/                error message translation (English + Farsi)
-  ledger/              domain: types, errors, Store/Auditor ports, Service
+  ledger/              domain: types, errors, Store/OutboxStore ports, Service
   metrics/             Prometheus metric definitions
   store/postgres/      Postgres implementation of ledger.Store
   transport/grpc/      gRPC server, handler, interceptors, mappers
