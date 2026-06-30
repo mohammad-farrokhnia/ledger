@@ -9,7 +9,7 @@ import (
 	"sort"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
 )
 
 type accountSnapshot struct {

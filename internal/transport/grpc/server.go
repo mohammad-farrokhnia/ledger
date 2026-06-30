@@ -8,8 +8,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
-	ledgerv1 "github.com/mohammad-farrokhnia/go-ledger/api/proto/ledger/v1"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+	ledgerv1 "github.com/mohammad-farrokhnia/ledger/api/proto/ledger/v1"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
 )
 
 type Server struct {

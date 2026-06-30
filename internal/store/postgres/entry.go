@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
 )
 
 func (s *Store) GetWalletHistory(ctx context.Context, params ledger.GetWalletHistoryParams) ([]ledger.Entry, error) {

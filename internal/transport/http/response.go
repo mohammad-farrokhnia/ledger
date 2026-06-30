@@ -10,8 +10,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/mohammad-farrokhnia/go-ledger/internal/i18n"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+	"github.com/mohammad-farrokhnia/ledger/internal/i18n"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
 )
 
 var grpcToHTTP = map[codes.Code]int{
@@ -57,7 +57,7 @@ func newMeta(acceptLang string, code i18n.MessageCode) Meta {
 }
 
 const (
-	appName    = "go-ledger"
+	appName    = "ledger"
 	appVersion = "1.0.0"
 )
 
