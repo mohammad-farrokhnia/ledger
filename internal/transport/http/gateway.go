@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	ledgerv1 "github.com/mohammad-farrokhnia/go-ledger/api/proto/ledger/v1"
+	ledgerv1 "github.com/mohammad-farrokhnia/ledger/api/proto/ledger/v1"
 )
 
 //go:embed swagger.json

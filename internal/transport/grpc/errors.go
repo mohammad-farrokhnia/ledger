@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
 )
 
 func domainErrorToGRPC(err error) error {

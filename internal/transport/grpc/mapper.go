@@ -3,8 +3,8 @@ package grpc
 import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	ledgerv1 "github.com/mohammad-farrokhnia/go-ledger/api/proto/ledger/v1"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+	ledgerv1 "github.com/mohammad-farrokhnia/ledger/api/proto/ledger/v1"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
 )
 
 func accountToProto(a ledger.Account) *ledgerv1.Wallet {

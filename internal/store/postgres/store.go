@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+	"github.com/mohammad-farrokhnia/ledger/internal/ledger"
 )
 
 type Store struct {

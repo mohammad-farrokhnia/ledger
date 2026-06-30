@@ -1,4 +1,4 @@
-module github.com/mohammad-farrokhnia/go-ledger
+module github.com/mohammad-farrokhnia/ledger
 
 go 1.26.3
 

@@ -1,4 +1,4 @@
-# go-ledger
+# ledger
 
 A bank-grade financial transaction service built in Go. Designed to be the central financial brain that microservices talk to when they need to move value safely.
 
@@ -22,7 +22,7 @@ graph TD
 
 ### Why hexagonal architecture
 
-go-ledger has three input transports: gRPC, HTTP Gateway, and a future event consumer. Hexagonal architecture isolates the domain from all of them — the service layer never imports gRPC, HTTP, or Postgres packages. Each transport is a plug-in adapter.
+ledger has three input transports: gRPC, HTTP Gateway, and a future event consumer. Hexagonal architecture isolates the domain from all of them — the service layer never imports gRPC, HTTP, or Postgres packages. Each transport is a plug-in adapter.
 
 ### The dependency flow (strictly one-directional, no cycles)
 
@@ -115,8 +115,8 @@ Error messages are translated based on the client's `Accept-Language` header. Su
 
 ```bash
 # Clone and configure
-git clone https://github.com/mohammad-farrokhnia/go-ledger.git
-cd go-ledger
+git clone https://github.com/mohammad-farrokhnia/ledger.git
+cd ledger
 cp configs/config.example.yaml configs/config.yaml
 # Edit configs/config.yaml — at minimum set database.dsn
 
@@ -191,8 +191,8 @@ grpcurl -plaintext -d '{
 ```bash
 curl http://localhost:8080/health | jq .
 # {
-#   "data": {"status": "ok", "version": "1.0.0", "app": "go-ledger", "checks": {"postgres": "ok"}},
-#   "meta": {"appName": "go-ledger", "version": "1.0.0", "timestamp": "...", "messageCode": "HEALTH_OK", "message": "healthy"}
+#   "data": {"status": "ok", "version": "1.0.0", "app": "ledger", "checks": {"postgres": "ok"}},
+#   "meta": {"appName": "ledger", "version": "1.0.0", "timestamp": "...", "messageCode": "HEALTH_OK", "message": "healthy"}
 # }
 ```
 
@@ -274,7 +274,7 @@ Unit tests (ledger package) use a mock store and run without Postgres. Integrati
 ## Building the Docker Image
 
 ```bash
-docker build -f deployments/docker/Dockerfile -t go-ledger:latest .
+docker build -f deployments/docker/Dockerfile -t ledger:latest .
 
 # Run with docker compose (includes Postgres)
 docker compose -f deployments/docker/docker-compose.yml up

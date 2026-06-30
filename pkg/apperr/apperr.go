@@ -1,16 +1,12 @@
-// Package apperr provides the AppError type for go-ledger.
-// Mirrors LibreCore's pkg/errors: typed error codes, error types,
-// HTTP status mapping, and context for additional details.
 package apperr
 
 import (
 	"fmt"
 	"net/http"
 
-	"github.com/mohammad-farrokhnia/go-ledger/internal/i18n"
+	"github.com/mohammad-farrokhnia/ledger/internal/i18n"
 )
 
-// Type classifies the error for logging and HTTP status mapping.
 type Type string
 
 const (
@@ -22,8 +18,6 @@ const (
 	TypeForbidden    Type = "forbidden"
 )
 
-// Code is a stable string identifier for each error condition.
-// Clients can rely on these — they never change.
 const (
 	ErrAccountNotFound      = "ACCOUNT_NOT_FOUND"
 	ErrTransactionNotFound  = "TRANSACTION_NOT_FOUND"
@@ -38,7 +32,6 @@ const (
 	ErrBadRequest           = "BAD_REQUEST"
 )
 
-// codeToMessageCode maps error codes to i18n message codes.
 var codeToMessageCode = map[string]i18n.MessageCode{
 	ErrAccountNotFound:      i18n.MsgAccountNotFound,
 	ErrTransactionNotFound:  i18n.MsgTransactionNotFound,
@@ -53,7 +46,6 @@ var codeToMessageCode = map[string]i18n.MessageCode{
 	ErrBadRequest:           i18n.MsgBadRequest,
 }
 
-// MessageCode returns the i18n code for this error code.
 func MessageCode(errCode string) i18n.MessageCode {
 	if code, ok := codeToMessageCode[errCode]; ok {
 		return code
@@ -61,7 +53,6 @@ func MessageCode(errCode string) i18n.MessageCode {
 	return i18n.MsgInternalError
 }
 
-// AppError is the single error type used across all layers.
 type AppError struct {
 	code       string
 	errType    Type

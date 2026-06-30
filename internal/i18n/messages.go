@@ -1,7 +1,7 @@
 //nolint:staticcheck // U+200C (ZWNJ) is intentional Persian typography
 package i18n
 
-import "github.com/mohammad-farrokhnia/go-ledger/internal/ledger"
+import "github.com/mohammad-farrokhnia/ledger/internal/ledger"
 
 var catalog = map[string]map[Lang]string{
 	"account_not_found": {
